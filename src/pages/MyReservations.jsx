@@ -1,30 +1,111 @@
 import { useState, useEffect } from 'react';
 import { reservationAPI } from '../api/reservation';
+import { classroomAPI } from '../api/classroom';
+import { authAPI } from '../api/auth';
+import { waitlistAPI } from '../api/waitlist';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const MyReservations = () => {
   const [reservations, setReservations] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   useEffect(() => {
     fetchReservations();
+    fetchWaitlist();
+    fetchClassrooms();
+    fetchStudents();
   }, []);
 
   const fetchReservations = async () => {
     try {
       setLoading(true);
       const response = await reservationAPI.getMyReservations();
-      setReservations(response.data);
+      // 취소된 예약은 목록에서 제외 (누적 통계에는 포함됨)
+      const activeReservations = response.data.filter(
+        (r) => r.status !== 'cancelled'
+      );
+      setReservations(activeReservations);
     } catch (error) {
       setError('예약 내역을 불러오는데 실패했습니다.');
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchClassrooms = async () => {
+    try {
+      const response = await classroomAPI.getAll();
+      setClassrooms(response.data);
+    } catch (error) {
+      console.error('강의실 목록을 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await authAPI.getStudents();
+      setStudents(response.data);
+    } catch (error) {
+      console.error('학생 목록을 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const fetchWaitlist = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.id) {
+        const response = await waitlistAPI.getMyWaitlist();
+        setWaitlist(response.data.filter(w => w.status === 'waiting'));
+      }
+    } catch (error) {
+      console.error('대기 목록을 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const handleCancelWaitlist = async (id) => {
+    if (!window.confirm('대기 신청을 취소하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await waitlistAPI.cancel(id);
+      fetchWaitlist();
+      alert('대기 신청이 취소되었습니다.');
+    } catch (error) {
+      alert('대기 신청 취소에 실패했습니다.');
+      console.error(error);
+    }
+  };
+
+  const getClassroomName = (roomId) => {
+    const classroom = classrooms.find(c => c.id === roomId);
+    return classroom?.name || '강의실명 없음';
+  };
+
+  const getParticipantNames = (participants) => {
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return [];
+    }
+    
+    return participants.map(p => {
+      // 숫자면 회원 ID, 문자열이면 비회원 정보
+      if (typeof p === 'number' || (!isNaN(p) && !isNaN(parseFloat(p)))) {
+        const userId = parseInt(p);
+        const student = students.find(s => s.id === userId);
+        return student ? student.name : `회원 ID: ${userId}`;
+      } else {
+        // 비회원 정보 (학번 등)
+        return String(p);
+      }
+    });
   };
 
   const handleCancel = async (id) => {
@@ -98,12 +179,19 @@ const MyReservations = () => {
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-4">
-                    {reservation.classroom?.name || '강의실명 없음'}
-                  </h3>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                      {getClassroomName(reservation.roomId)}
+                    </h3>
+                    {reservation.participants && reservation.participants.length > 0 && (
+                      <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-bold">
+                        👥 그룹예약
+                      </span>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <p className="text-xl text-gray-800 font-black">
-                      📍 위치: {reservation.classroom?.location}
+                      📍 위치: {reservation.location || '위치 정보 없음'}
                     </p>
                     <p className="text-xl text-gray-800 font-black">
                       📅 날짜: {formatDate(reservation.date)}
@@ -112,8 +200,13 @@ const MyReservations = () => {
                       ⏰ 시간: {reservation.startTime} - {reservation.endTime}
                     </p>
                     <p className="text-xl text-gray-800 font-black">
-                      📝 목적: {reservation.purpose}
+                      📝 목적: {reservation.purpose || '목적 없음'}
                     </p>
+                    {reservation.participants && reservation.participants.length > 0 && (
+                      <p className="text-xl text-gray-800 font-black">
+                        👥 참여 인원: {getParticipantNames(reservation.participants).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <span
                     className={`inline-block mt-4 px-5 py-2 rounded-full text-lg font-black ${
@@ -121,6 +214,8 @@ const MyReservations = () => {
                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                         : reservation.status === 'pending'
                         ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
+                        : reservation.status === 'cancelled'
+                        ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
                         : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
                     }`}
                   >
@@ -128,6 +223,8 @@ const MyReservations = () => {
                       ? '✓ 확정'
                       : reservation.status === 'pending'
                       ? '⏳ 대기'
+                      : reservation.status === 'cancelled'
+                      ? '✕ 취소됨'
                       : '✕ 취소'}
                   </span>
                 </div>
@@ -144,6 +241,53 @@ const MyReservations = () => {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* 대기 목록 섹션 */}
+      {waitlist.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-6 animate-fade-in">
+            내 대기 목록
+          </h2>
+          <div className="space-y-6">
+            {waitlist.map((waitlistItem, index) => (
+              <Card 
+                key={waitlistItem.id} 
+                className="hover:bg-gradient-to-br hover:from-yellow-50 hover:to-amber-50 animate-slide-up border-l-4 border-yellow-500"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600">
+                        {getClassroomName(waitlistItem.roomId)}
+                      </h3>
+                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-bold">
+                        ⏳ 대기 중
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xl text-gray-800 font-black">
+                        📅 날짜: {formatDate(waitlistItem.date)}
+                      </p>
+                      <p className="text-xl text-gray-800 font-black">
+                        ⏰ 시간: {waitlistItem.startTime} - {waitlistItem.endTime}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="danger"
+                    size="md"
+                    onClick={() => handleCancelWaitlist(waitlistItem.id)}
+                    className="ml-8"
+                  >
+                    대기 취소
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>

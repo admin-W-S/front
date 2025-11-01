@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { classroomAPI } from '../api/classroom';
+import { statsAPI } from '../api/stats';
 
 const AdminClassroomManagement = () => {
   const [classrooms, setClassrooms] = useState([]);
+  const [popularRooms, setPopularRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState(null);
   const [formData, setFormData] = useState({
@@ -17,6 +20,7 @@ const AdminClassroomManagement = () => {
 
   useEffect(() => {
     fetchClassrooms();
+    fetchPopularStats();
   }, []);
 
   const fetchClassrooms = async () => {
@@ -28,6 +32,18 @@ const AdminClassroomManagement = () => {
       console.error('강의실 목록을 불러오는데 실패했습니다:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPopularStats = async () => {
+    try {
+      setStatsLoading(true);
+      const response = await statsAPI.getPopularRooms();
+      setPopularRooms(response.data);
+    } catch (error) {
+      console.error('통계를 불러오는데 실패했습니다:', error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -66,7 +82,13 @@ const AdminClassroomManagement = () => {
       name: classroom.name,
       location: classroom.location,
       capacity: classroom.capacity,
-      amenities: classroom.amenities?.join(', ') || '',
+      amenities: classroom.equipments?.map(eq => {
+        const equipmentNames = {
+          projector: '프로젝터',
+          whiteboard: '화이트보드'
+        };
+        return equipmentNames[eq] || eq;
+      }).join(', ') || '',
       description: classroom.description || '',
     });
     setShowModal(true);
@@ -120,7 +142,7 @@ const AdminClassroomManagement = () => {
   }
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">강의실 관리</h1>
         <button
@@ -129,6 +151,30 @@ const AdminClassroomManagement = () => {
         >
           + 강의실 추가
         </button>
+      </div>
+
+      {/* 인기 통계 TOP 5 */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-2xl font-bold mb-4">인기 강의실 통계 (TOP 5)</h2>
+        {statsLoading ? (
+          <div className="flex justify-center items-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : popularRooms.length === 0 ? (
+          <p className="text-gray-600">통계 데이터가 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {popularRooms.map((room, index) => (
+              <div key={room.roomId} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-2xl font-bold text-blue-600">#{index + 1}</span>
+                  <span className="text-lg font-bold text-gray-700">{room.count}회</span>
+                </div>
+                <p className="text-sm font-medium text-gray-800">{room.name}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -251,17 +297,24 @@ const AdminClassroomManagement = () => {
               <p className="text-sm text-gray-500 mb-4">
                 수용 인원: {classroom.capacity}명
               </p>
-              {classroom.amenities && classroom.amenities.length > 0 && (
+              {classroom.equipments && classroom.equipments.length > 0 && (
                 <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-1">시설:</p>
                   <div className="flex flex-wrap gap-2">
-                    {classroom.amenities.map((amenity, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
-                      >
-                        {amenity}
-                      </span>
-                    ))}
+                    {classroom.equipments.map((equipment, idx) => {
+                      const equipmentNames = {
+                        projector: '프로젝터',
+                        whiteboard: '화이트보드'
+                      };
+                      return (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                        >
+                          {equipmentNames[equipment] || equipment}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

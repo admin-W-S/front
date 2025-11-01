@@ -82,9 +82,14 @@ export const authAPI = {
     }
     return api.post('/login', { email: credentials.email, password: credentials.password })
       .then(response => {
-        // 백엔드 응답 형식: { message, user }
+        // 백엔드 응답 형식: { success: true, message: "...", data: user }
         // 프론트엔드가 기대하는 형식: { data: { user } }
-        return { data: { user: response.data.user } };
+        return { data: { user: response.data.data } };
+      })
+      .catch(error => {
+        // 에러 응답 형식: { success: false, message: "...", data: null }
+        const message = error.response?.data?.message || '로그인에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
       });
   },
 
@@ -95,9 +100,14 @@ export const authAPI = {
     }
     return api.post('/login', { email: credentials.email, password: credentials.password })
       .then(response => {
-        // 백엔드 응답 형식: { message, user }
+        // 백엔드 응답 형식: { success: true, message: "...", data: user }
         // 프론트엔드가 기대하는 형식: { data: { user } }
-        return { data: { user: response.data.user } };
+        return { data: { user: response.data.data } };
+      })
+      .catch(error => {
+        // 에러 응답 형식: { success: false, message: "...", data: null }
+        const message = error.response?.data?.message || '로그인에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
       });
   },
 
@@ -108,9 +118,14 @@ export const authAPI = {
     }
     return api.post('/signup', { ...userData, role: 'student' })
       .then(response => {
-        // 백엔드 응답 형식: user 객체만 반환
+        // 백엔드 응답 형식: { success: true, message: "...", data: user }
         // 프론트엔드가 기대하는 형식: { data: { user } }
-        return { data: { user: response.data } };
+        return { data: { user: response.data.data } };
+      })
+      .catch(error => {
+        // 에러 응답 형식: { success: false, message: "...", data: null }
+        const message = error.response?.data?.message || '회원가입에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
       });
   },
 
@@ -121,9 +136,14 @@ export const authAPI = {
     }
     return api.post('/signup', { ...userData, role: 'admin' })
       .then(response => {
-        // 백엔드 응답 형식: user 객체만 반환
+        // 백엔드 응답 형식: { success: true, message: "...", data: user }
         // 프론트엔드가 기대하는 형식: { data: { user } }
-        return { data: { user: response.data } };
+        return { data: { user: response.data.data } };
+      })
+      .catch(error => {
+        // 에러 응답 형식: { success: false, message: "...", data: null }
+        const message = error.response?.data?.message || '회원가입에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
       });
   },
 
@@ -143,6 +163,28 @@ export const authAPI = {
     // 백엔드에 현재 사용자 조회 API가 없으므로 localStorage에서 가져옴
     const user = localStorage.getItem('user');
     return Promise.resolve({ data: { user: user ? JSON.parse(user) : null } });
+  },
+
+  // Get students list (for group reservation)
+  getStudents: () => {
+    if (DEV_MODE) {
+      // Mock students
+      return Promise.resolve({
+        data: [
+          { id: 2, name: '윤인서', email: 'inseo3040@gmail.com' },
+          { id: 3, name: 'd', email: 'kkong3040@naver.com' },
+          { id: 4, name: '박재연', email: 'pjy0192@naver.com' },
+        ]
+      });
+    }
+    return api.get('/api/auth/students')
+      .then(response => {
+        return { data: response.data.data || [] };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '학생 목록 조회에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 };
 

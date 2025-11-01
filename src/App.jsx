@@ -11,6 +11,8 @@ import ClassroomList from './pages/ClassroomList';
 import ClassroomExplorer from './pages/ClassroomExplorer';
 import Reservation from './pages/Reservation';
 import MyReservations from './pages/MyReservations';
+import RoomTimeline from './pages/RoomTimeline';
+import Notifications from './pages/Notifications';
 import AdminClassroomManagement from './pages/AdminClassroomManagement';
 
 function App() {
@@ -54,6 +56,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MyReservations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/room/:roomId/timeline"
+              element={
+                <ProtectedRoute>
+                  <RoomTimeline />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
                 </ProtectedRoute>
               }
             />

@@ -133,7 +133,32 @@ export const reservationAPI = {
     if (!user.id) {
       return Promise.reject({ response: { status: 401 } });
     }
-    return api.get(`/reservations/user/${user.id}`);
+    return api.get(`/api/reservations/my/${user.id}`)
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: [...] }
+        return { data: response.data.data || [] };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '예약 목록 조회에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
+  },
+
+  // Get room reservations (특정 강의실의 전체 예약 현황)
+  getRoomReservations: (roomId, date = null) => {
+    if (DEV_MODE) {
+      return Promise.resolve({ data: [] });
+    }
+    const params = date ? { date } : {};
+    return api.get(`/api/reservations/room/${roomId}`, { params })
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: [...] }
+        return { data: response.data.data || [] };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 예약 현황 조회에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Create reservation
@@ -146,14 +171,43 @@ export const reservationAPI = {
     if (!user.id) {
       return Promise.reject({ response: { status: 401 } });
     }
-    const { classroomId, date, start_time, end_time } = reservationData;
-    return api.post('/reservations', {
-      user_id: user.id,
-      room_id: parseInt(classroomId),
+    const { classroomId, date, startTime, endTime, purpose, participants } = reservationData;
+    
+    // 디버깅: 전송할 데이터 확인
+    console.log("원본 reservationData:", reservationData);
+    console.log("추출한 purpose:", purpose, "타입:", typeof purpose);
+    console.log("추출한 participants:", participants);
+    
+    // purpose와 participants를 항상 포함 (undefined나 null이어도 빈 문자열/배열로 전송)
+    // participants는 회원 ID(숫자) 또는 비회원 정보(학번 등 문자열)를 포함할 수 있음
+    const processedParticipants = Array.isArray(participants) ? participants.map(p => {
+      // 숫자면 정수로 변환, 문자열이면 그대로 유지
+      const isNumeric = !isNaN(p) && !isNaN(parseFloat(p));
+      return isNumeric ? parseInt(p) : String(p).trim();
+    }) : [];
+    
+    const payload = {
+      roomId: parseInt(classroomId),
+      userId: parseInt(user.id),
       date,
-      start_time,
-      end_time
-    });
+      startTime: startTime || reservationData.start_time,
+      endTime: endTime || reservationData.end_time,
+      purpose: (purpose !== undefined && purpose !== null) ? String(purpose).trim() : "",
+      participants: processedParticipants
+    };
+    console.log("예약 전송 데이터:", payload);
+    console.log("payload.purpose:", payload.purpose);
+    console.log("payload.participants:", payload.participants);
+    
+    return api.post('/api/reservations', payload)
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: reservation }
+        return { data: response.data.data };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '예약 생성에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Update reservation (백엔드에는 업데이트가 없으므로 에러 반환)
@@ -170,7 +224,14 @@ export const reservationAPI = {
     if (DEV_MODE) {
       return mockReservationOperations.delete(id);
     }
-    return api.delete(`/reservations/${id}`);
+    return api.delete(`/api/reservations/${id}`)
+      .then(response => {
+        return { data: { message: '예약 취소 성공' } };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '예약 취소에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Get available time slots for a classroom and date (백엔드의 /search 사용)

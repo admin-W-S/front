@@ -117,27 +117,41 @@ const ClassroomList = () => {
                     {classroom.available ? '사용 가능' : '사용 중'}
                   </span>
                 </div>
-                {classroom.amenities && (
+                {classroom.equipments && classroom.equipments.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm text-gray-500 mb-1">시설:</p>
                     <div className="flex flex-wrap gap-2">
-                      {classroom.amenities.map((amenity, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
-                        >
-                          {amenity}
-                        </span>
-                      ))}
+                      {classroom.equipments.map((equipment, idx) => {
+                        const equipmentNames = {
+                          projector: '프로젝터',
+                          whiteboard: '화이트보드'
+                        };
+                        return (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                          >
+                            {equipmentNames[equipment] || equipment}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
-                <Link
-                  to={`/reserve?classroomId=${classroom.id}`}
-                  className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  예약하기
-                </Link>
+                <div className="flex gap-2">
+                  <Link
+                    to={`/reserve?classroomId=${classroom.id}`}
+                    className="flex-1 text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    예약하기
+                  </Link>
+                  <Link
+                    to={`/room/${classroom.id}/timeline`}
+                    className="flex-1 text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    타임라인
+                  </Link>
+                </div>
               </div>
             </div>
           ))}

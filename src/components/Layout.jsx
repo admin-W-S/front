@@ -57,12 +57,20 @@ const Layout = ({ children }) => {
                   강의실 목록
                 </Link>
                 {role === 'student' && (
-                  <Link
-                    to="/my-reservations"
-                    className={`px-4 py-2 rounded-xl text-base font-semibold transition-all ${isActive('/my-reservations') ? 'bg-primary text-white' : 'text-textSecondary hover:bg-gray-100'}`}
-                  >
-                    내 예약
-                  </Link>
+                  <>
+                    <Link
+                      to="/my-reservations"
+                      className={`px-4 py-2 rounded-xl text-base font-semibold transition-all ${isActive('/my-reservations') ? 'bg-primary text-white' : 'text-textSecondary hover:bg-gray-100'}`}
+                    >
+                      내 예약
+                    </Link>
+                    <Link
+                      to="/notifications"
+                      className={`px-4 py-2 rounded-xl text-base font-semibold transition-all ${isActive('/notifications') ? 'bg-primary text-white' : 'text-textSecondary hover:bg-gray-100'}`}
+                    >
+                      알림
+                    </Link>
+                  </>
                 )}
                 {role === 'admin' && (
                   <Link
@@ -131,13 +139,22 @@ const Layout = ({ children }) => {
                 강의실 목록
               </Link>
               {role === 'student' && (
-                <Link
-                  to="/my-reservations"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-2 rounded-xl text-textSecondary hover:bg-gray-100 font-semibold"
-                >
-                  내 예약
-                </Link>
+                <>
+                  <Link
+                    to="/my-reservations"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-2 rounded-xl text-textSecondary hover:bg-gray-100 font-semibold"
+                  >
+                    내 예약
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-2 rounded-xl text-textSecondary hover:bg-gray-100 font-semibold"
+                  >
+                    알림
+                  </Link>
+                </>
               )}
               {role === 'admin' && (
                 <Link

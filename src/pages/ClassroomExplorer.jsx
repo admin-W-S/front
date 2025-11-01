@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import CampusMap from '../components/campus/CampusMap';
-import BuildingView from '../components/campus/BuildingView';
-import ClassroomFloor from '../components/campus/ClassroomFloor';
-import SeatGrid from '../components/campus/SeatGrid';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -13,27 +10,30 @@ const ClassroomExplorer = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [filteredClassrooms, setFilteredClassrooms] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [capacityFilter, setCapacityFilter] = useState('');
 
   useEffect(() => {
     fetchAllClassrooms();
   }, []);
 
   useEffect(() => {
-    if (selectedFloor && classrooms.length > 0) {
-      filterClassroomsByFloor();
+    if (selectedBuilding) {
+      filterClassroomsByBuilding();
+    } else {
+      filterClassrooms();
     }
-  }, [selectedFloor, classrooms]);
+  }, [selectedBuilding, classrooms, searchTerm, capacityFilter]);
 
   const fetchAllClassrooms = async () => {
     try {
       setLoading(true);
       const response = await classroomAPI.getAll();
       setClassrooms(response.data);
+      setFilteredClassrooms(response.data);
     } catch (error) {
       console.error('강의실 목록을 불러오는데 실패했습니다:', error);
     } finally {
@@ -41,62 +41,53 @@ const ClassroomExplorer = () => {
     }
   };
 
-  const filterClassroomsByFloor = () => {
-    // 강의실 위치에서 층 정보 추출 (예: "본관 3층" -> 3층)
-    const filtered = classrooms.filter(room => {
-      const location = room.location || '';
-      return location.includes(`${selectedFloor}층`) || location.includes(`${selectedFloor}F`);
+  const filterClassroomsByBuilding = () => {
+    // 선택된 건물의 강의실만 필터링
+    let filtered = classrooms.filter(room => {
+      if (selectedBuilding && room.location) {
+        return room.location === selectedBuilding.name || room.location === selectedBuilding.id;
+      }
+      return false;
     });
+    
+    // 추가 필터링 (검색어, 수용인원)
+    filtered = applyFilters(filtered);
     setFilteredClassrooms(filtered);
+  };
+
+  const filterClassrooms = () => {
+    const filtered = applyFilters(classrooms);
+    setFilteredClassrooms(filtered);
+  };
+
+  const applyFilters = (classroomsList) => {
+    let filtered = classroomsList;
+
+    // Search by name
+    if (searchTerm) {
+      filtered = filtered.filter(classroom =>
+        classroom.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by capacity
+    if (capacityFilter) {
+      const capacity = parseInt(capacityFilter);
+      filtered = filtered.filter(classroom => classroom.capacity >= capacity);
+    }
+
+    return filtered;
   };
 
   const handleBuildingSelect = (building) => {
     setSelectedBuilding(building);
-    setSelectedFloor(null);
     setSelectedClassroom(null);
-    setSelectedSeats([]);
-  };
-
-  const handleFloorSelect = (floor) => {
-    setSelectedFloor(floor);
-    setSelectedClassroom(null);
-    setSelectedSeats([]);
   };
 
   const handleClassroomSelect = (classroom) => {
-    if (!classroom.available) return; // 예약된 강의실은 선택 불가
+    if (!classroom.available) return;
     setSelectedClassroom(classroom);
-    setSelectedSeats([]);
-  };
-
-  const handleSeatClick = (seatNumber) => {
-    if (selectedSeats.includes(seatNumber)) {
-      setSelectedSeats(selectedSeats.filter(s => s !== seatNumber));
-    } else {
-      if (selectedSeats.length >= 5) { // 최대 5개 좌석 선택
-        alert('좌석은 최대 5개까지 선택할 수 있습니다.');
-        return;
-      }
-      setSelectedSeats([...selectedSeats, seatNumber]);
-    }
-  };
-
-  const handleReserve = () => {
-    if (!selectedClassroom || selectedSeats.length === 0) {
-      alert('강의실과 좌석을 선택해주세요.');
-      return;
-    }
-    navigate(`/reserve?classroomId=${selectedClassroom.id}&seats=${selectedSeats.join(',')}`);
-  };
-
-  const getBuildingFromClassroom = (classroom) => {
-    // 강의실 위치에서 건물 정보 추출
-    const location = classroom.location || '';
-    if (location.includes('본관')) return 'main';
-    if (location.includes('도서관')) return 'library';
-    if (location.includes('과학관')) return 'science';
-    if (location.includes('예술관')) return 'art';
-    return 'main';
+    navigate(`/reserve?classroomId=${classroom.id}`);
   };
 
   if (loading) {
@@ -121,8 +112,8 @@ const ClassroomExplorer = () => {
 
       {/* 메인 그리드 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* 왼쪽: 캠퍼스 지도 */}
-        <div className="lg:col-span-1">
+        {/* 왼쪽: 캠퍼스 지도 (2열 차지) */}
+        <div className="lg:col-span-2">
           <CampusMap
             buildings={null}
             selectedBuilding={selectedBuilding}
@@ -130,67 +121,104 @@ const ClassroomExplorer = () => {
           />
         </div>
 
-        {/* 중앙: 건물/층 선택 */}
+        {/* 오른쪽: 필터 및 검색 */}
         <div className="lg:col-span-1">
-          <BuildingView
-            building={selectedBuilding}
-            selectedFloor={selectedFloor}
-            onFloorSelect={handleFloorSelect}
-          />
-        </div>
-
-        {/* 오른쪽: 층 강의실 목록 */}
-        <div className="lg:col-span-1">
-          <ClassroomFloor
-            floor={selectedFloor}
-            classrooms={filteredClassrooms}
-            selectedClassroom={selectedClassroom}
-            onClassroomSelect={handleClassroomSelect}
-          />
+          <div className="bg-white rounded-2xl shadow-glow p-6">
+            <h3 className="text-2xl font-bold mb-4">필터</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  검색
+                </label>
+                <input
+                  type="text"
+                  placeholder="강의실 이름으로 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  최소 수용 인원
+                </label>
+                <input
+                  type="number"
+                  placeholder="최소 수용 인원"
+                  value={capacityFilter}
+                  onChange={(e) => setCapacityFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 선택된 강의실 좌석 상세 */}
-      {selectedClassroom && (
-        <div className="mb-6">
-          <SeatGrid
-            classroom={selectedClassroom}
-            selectedSeats={selectedSeats}
-            onSeatClick={handleSeatClick}
-            maxSeats={5}
-          />
-        </div>
-      )}
-
-      {/* 예약 요약 */}
-      <div className="bg-gradient-to-br from-primary via-purple-600 to-accent rounded-2xl shadow-glow p-8 text-white animate-slide-up">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-4xl font-black mb-4">🎫 예약 요약</h3>
-            {selectedClassroom ? (
-              <div className="space-y-2">
-                <p className="text-2xl font-black">강의실: {selectedClassroom.name}</p>
-                <p className="text-xl font-bold">위치: {selectedClassroom.location}</p>
-                {selectedSeats.length > 0 && (
-                  <p className="text-xl font-bold">선택 좌석: {selectedSeats.join(', ')}번</p>
-                )}
+      {/* 강의실 목록 (ClassroomList 스타일) */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">
+          {selectedBuilding 
+            ? `${selectedBuilding.name} 강의실`
+            : '전체 강의실'}
+        </h2>
+        {filteredClassrooms.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow-md">
+            <p className="text-gray-600">검색 결과가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredClassrooms.map((classroom) => (
+              <div key={classroom.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {classroom.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4">{classroom.location}</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-gray-500">
+                      수용 인원: {classroom.capacity}명
+                    </span>
+                    <span className={`px-2 py-1 rounded text-sm ${
+                      classroom.available 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {classroom.available ? '사용 가능' : '사용 중'}
+                    </span>
+                  </div>
+                  {classroom.equipments && classroom.equipments.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-500 mb-1">시설:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {classroom.equipments.map((equipment, idx) => {
+                          const equipmentNames = {
+                            projector: '프로젝터',
+                            whiteboard: '화이트보드'
+                          };
+                          return (
+                            <span
+                              key={idx}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                            >
+                              {equipmentNames[equipment] || equipment}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <Link
+                    to={`/reserve?classroomId=${classroom.id}`}
+                    className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    예약하기
+                  </Link>
+                </div>
               </div>
-            ) : (
-              <p className="text-2xl font-bold">강의실을 선택해주세요</p>
-            )}
+            ))}
           </div>
-          <div>
-            <Button
-              variant="secondary"
-              size="xl"
-              onClick={handleReserve}
-              disabled={!selectedClassroom || selectedSeats.length === 0}
-              className="shadow-glow"
-            >
-              예약하기
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 빠른 접근 버튼 */}

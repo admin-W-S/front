@@ -102,7 +102,15 @@ export const classroomAPI = {
     if (DEV_MODE) {
       return mockClassroomOperations.getAll(params);
     }
-    return api.get('/rooms', { params });
+    return api.get('/api/rooms', { params })
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: [...] }
+        return { data: response.data.data || [] };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 목록 조회에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Get classroom by ID
@@ -110,14 +118,15 @@ export const classroomAPI = {
     if (DEV_MODE) {
       return mockClassroomOperations.getById(id);
     }
-    // 백엔드에는 개별 조회가 없으므로 전체 조회 후 필터링
-    return api.get('/rooms').then(response => {
-      const classroom = response.data.find(r => r.id === parseInt(id));
-      if (!classroom) {
-        return Promise.reject({ response: { status: 404 } });
-      }
-      return { data: classroom };
-    });
+    return api.get(`/api/rooms/${id}`)
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: room }
+        return { data: response.data.data };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 조회에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Create classroom (admin only)
@@ -125,9 +134,27 @@ export const classroomAPI = {
     if (DEV_MODE) {
       return mockClassroomOperations.create(classroomData);
     }
-    // 백엔드 필드명에 맞게 변환
-    const { name, location, capacity, projector, whiteboard } = classroomData;
-    return api.post('/rooms', { name, location, capacity, projector, whiteboard });
+    // 백엔드 필드명에 맞게 변환 (equipments 배열로 변환)
+    const { name, location, capacity, projector, whiteboard, amenities } = classroomData;
+    const equipments = [];
+    if (projector || amenities?.includes('프로젝터')) equipments.push('projector');
+    if (whiteboard || amenities?.includes('화이트보드')) equipments.push('whiteboard');
+    
+    return api.post('/api/rooms', {
+      name,
+      location,
+      capacity: parseInt(capacity),
+      equipments,
+      available: classroomData.available !== undefined ? classroomData.available : true
+    })
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: room }
+        return { data: response.data.data };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 생성에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Update classroom (admin only)
@@ -136,8 +163,26 @@ export const classroomAPI = {
       return mockClassroomOperations.update(id, classroomData);
     }
     // 백엔드 필드명에 맞게 변환
-    const { name, location, capacity, projector, whiteboard } = classroomData;
-    return api.put(`/rooms/${id}`, { name, location, capacity, projector, whiteboard });
+    const { name, location, capacity, projector, whiteboard, amenities, available } = classroomData;
+    const equipments = [];
+    if (projector || amenities?.includes('프로젝터')) equipments.push('projector');
+    if (whiteboard || amenities?.includes('화이트보드')) equipments.push('whiteboard');
+    
+    return api.put(`/api/rooms/${id}`, {
+      name,
+      location,
+      capacity: capacity ? parseInt(capacity) : undefined,
+      equipments: equipments.length > 0 ? equipments : undefined,
+      available
+    })
+      .then(response => {
+        // 백엔드 응답 형식: { success: true, message: "...", data: room }
+        return { data: response.data.data };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 수정에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
 
   // Delete classroom (admin only)
@@ -145,7 +190,15 @@ export const classroomAPI = {
     if (DEV_MODE) {
       return mockClassroomOperations.delete(id);
     }
-    return api.delete(`/rooms/${id}`);
+    return api.delete(`/api/rooms/${id}`)
+      .then(response => {
+        return { data: { message: '강의실 삭제 성공' } };
+      })
+      .catch(error => {
+        const message = error.response?.data?.message || '강의실 삭제에 실패했습니다.';
+        throw { ...error, response: { ...error.response, data: { message } } };
+      });
   },
+
 };
 

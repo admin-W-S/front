@@ -1,10 +1,15 @@
 const CampusMap = ({ buildings, selectedBuilding, onBuildingSelect }) => {
-  // 건물 목록 샘플
+  // 실제 강의실 데이터 기반 건물 목록
   const defaultBuildings = [
-    { id: 'main', name: '본관', floors: 5, color: '#2563EB' },
-    { id: 'library', name: '도서관', floors: 3, color: '#059669' },
-    { id: 'science', name: '과학관', floors: 4, color: '#DC2626' },
-    { id: 'art', name: '예술관', floors: 2, color: '#9333EA' },
+    { id: '공대1호관', name: '공대1호관', floors: 5, color: '#2563EB' },
+    { id: '공3호관', name: '공3호관', floors: 5, color: '#1E40AF' },
+    { id: '공대5호관', name: '공대5호관', floors: 5, color: '#1E90FF' },
+    { id: '도서관', name: '도서관', floors: 3, color: '#059669' },
+    { id: '자연대', name: '자연대', floors: 5, color: '#DC2626' },
+    { id: '경상대', name: '경상대', floors: 5, color: '#F59E0B' },
+    { id: '인문대', name: '인문대', floors: 5, color: '#9333EA' },
+    { id: '사과대', name: '사과대', floors: 5, color: '#EC4899' },
+    { id: '교양관', name: '교양관', floors: 3, color: '#14B8A6' },
   ];
 
   const buildingsList = buildings || defaultBuildings;
@@ -12,7 +17,7 @@ const CampusMap = ({ buildings, selectedBuilding, onBuildingSelect }) => {
   return (
     <div className="bg-white rounded-2xl shadow-glow p-8 animate-fade-in">
       <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-8 text-center">🗺️ 캠퍼스 지도</h3>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {buildingsList.map((building) => (
           <button
             key={building.id}
