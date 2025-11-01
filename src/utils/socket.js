@@ -4,11 +4,8 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // 개발 모드에서는 localhost, 프로덕션에서는 window.location.origin 사용
-  if (import.meta.env.DEV) {
-    return 'http://localhost:4000';
-  }
-  return window.location.origin.replace(/:\d+$/, ':4000');
+  // 배포 환경 기본값
+  return 'https://backend-nwiq.onrender.com';
 };
 
 let socket = null;

@@ -5,9 +5,8 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // 브라우저에서 접속한 호스트(IP 또는 도메인)를 사용
-  const host = window.location.hostname;
-  return `http://${host}:4000`;
+  // 배포 환경 기본값
+  return 'https://backend-nwiq.onrender.com';
 };
 
 const API_BASE_URL = getApiBaseUrl();
