@@ -1,0 +1,38 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Pretendard', 'IBM Plex Sans KR', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #FFFFFF;
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #111111;
+}
+
+@layer utilities {
+  .transition-soft {
+    transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+  }
+  
+  .hover-gentle {
+    @apply transition-soft hover:scale-105 hover:shadow-md;
+  }
+  
+  .gradient-soft {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(250, 204, 21, 0.05) 100%);
+  }
+}
+
